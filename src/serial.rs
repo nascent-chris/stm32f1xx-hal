@@ -120,16 +120,15 @@ macro_rules! remap {
     ]) => {
         pub enum $name<OUTMODE, INMODE> where INMODE: RxMode {
             $(
-                $rname(gpio::$TX<Alternate<OUTMODE>>, gpio::$RX<Input<INMODE>>),
+                $rname { tx: gpio::$TX<Alternate<OUTMODE>>, rx: gpio::$RX<Input<INMODE>> },
             )+
         }
 
         $(
-
             impl<OUTMODE, INMODE: RxMode> From<(gpio::$TX<Alternate<OUTMODE>>, gpio::$RX<Input<INMODE>>, &mut MAPR)> for Pins<OUTMODE, INMODE> {
                 fn from(p: (gpio::$TX<Alternate<OUTMODE>>, gpio::$RX<Input<INMODE>>, &mut MAPR)) -> Self {
                     p.2.modify_mapr($remapex);
-                    Self::$rname(p.0, p.1)
+                    Self::$rname { tx: p.0, rx: p.1 }
                 }
             }
 
@@ -142,13 +141,12 @@ macro_rules! remap {
                 fn from(p: (gpio::$TX, gpio::$RX, &mut MAPR)) -> Self {
                     p.2.modify_mapr($remapex);
                     let mut cr = Cr::new();
-                    Self::$rname(p.0.into_mode::<Alternate<OUTMODE>>(&mut cr), p.1.into_mode::<Input<INMODE>>(&mut cr))
+                    Self::$rname { tx: p.0.into_mode::<Alternate<OUTMODE>>(&mut cr), rx: p.1.into_mode::<Input<INMODE>>(&mut cr) }
                 }
             }
         )+
     }
 }
-
 use remap;
 
 use crate::pac::usart1 as uart_base;

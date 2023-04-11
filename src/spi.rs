@@ -80,6 +80,14 @@ pub struct Master;
 /// Spi in Slave mode (type state)
 pub struct Slave;
 
+pub mod spi1 {
+    use super::*;
+
+    pub enum MasterPins {
+        
+    }
+}
+
 mod sealed {
     pub trait Remap {
         type Periph;
