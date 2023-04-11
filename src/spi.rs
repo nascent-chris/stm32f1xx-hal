@@ -44,7 +44,7 @@ use crate::dma::dma1;
 #[cfg(feature = "connectivity")]
 use crate::dma::dma2;
 use crate::dma::{Receive, RxDma, RxTxDma, Transfer, TransferPayload, Transmit, TxDma, R, W};
-use crate::gpio::{self, Alternate, Input};
+use crate::gpio::{self, Alternate, Input, Floating, PullUp};
 use crate::rcc::{BusClock, Clocks, Enable, Reset};
 use crate::time::Hertz;
 
@@ -137,6 +137,10 @@ pub struct NoMiso;
 /// A filler type for when the Mosi pin is unnecessary
 pub struct NoMosi;
 
+pub trait RxMode {}
+impl RxMode for Floating {}
+impl RxMode for PullUp {}
+
 impl<REMAP> Sck<REMAP> for NoSck {}
 impl<REMAP> Miso<REMAP> for NoMiso {}
 impl<REMAP> Mosi<REMAP> for NoMosi {}
@@ -151,13 +155,13 @@ macro_rules! remap {
             const REMAP: bool = $state;
         }
         // Master mode pins
-        impl<MODE> Sck<$name> for gpio::$SCK<Alternate<MODE>> {}
-        impl<MODE> Miso<$name> for gpio::$MISO<Input<MODE>> {}
-        impl<MODE> Mosi<$name> for gpio::$MOSI<Alternate<MODE>> {}
+        impl Sck<$name> for gpio::$SCK<Alternate> {}
+        impl<MODE: RxMode> Miso<$name> for gpio::$MISO<Input<MODE>> {}
+        impl Mosi<$name> for gpio::$MOSI<Alternate> {}
         // Slave mode pins
-        impl<MODE> Ssck<$name> for gpio::$SCK<Input<MODE>> {}
+        impl Ssck<$name> for gpio::$SCK<Input> {}
         impl<MODE> So<$name> for gpio::$MISO<Alternate<MODE>> {}
-        impl<MODE> Si<$name> for gpio::$MOSI<Input<MODE>> {}
+        impl<MODE: RxMode> Si<$name> for gpio::$MOSI<Input<MODE>> {}
     };
 }
 
