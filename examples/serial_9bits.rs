@@ -122,8 +122,7 @@ fn main() -> ! {
     // the registers are used to enable and configure the device.
     let serial = Serial::new(
         p.USART3,
-        (tx_pin, rx_pin),
-        &mut afio.mapr,
+        (tx_pin, rx_pin, &mut afio.mapr),
         Config::default()
             .baudrate(9600.bps())
             .wordlength_9bits()

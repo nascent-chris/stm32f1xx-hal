@@ -13,7 +13,7 @@ use stm32f1xx_hal::{
     pac::interrupt,
     pac::USART1,
     prelude::*,
-    serial::{Rx, Serial, Tx},
+    serial::{Config, Rx, Serial, Tx},
 };
 
 static mut RX: Option<Rx<USART1>> = None;
