@@ -80,13 +80,48 @@ pub struct Master;
 /// Spi in Slave mode (type state)
 pub struct Slave;
 
+pub trait RxMode {}
+impl RxMode for Floating {}
+impl RxMode for PullUp {}
+
 pub mod spi1 {
     use super::*;
 
     pub enum MasterPins {
-        
+
     }
 }
+
+
+macro_rules! remap {
+    ($master:ident, $slave:ident: [
+        $($rname:ident, $SCK:ident, $MISO:ident, $MOSI:ident $( => $MAPR:ident { $remapex:expr })?;)+
+    ]) => {
+        pub enum $master<MISOMODE> where MISOMODE: RxMode {
+            $(
+                $rname { sck: gpio::$SCK<Alternate>, miso: gpio::$RX<Input<MISOMODE>>, mosi: gpio::$SDA<Alternate> },
+            )+
+        }
+
+        $(
+            impl<MISOMODE: RxMode> From<(gpio::$SCK<Alternate>, gpio::$RX<Input<MISOMODE>>, gpio::$SDA<Alternate> $(, &mut $MAPR)?)> for Pins<MISOMODE> {
+                fn from(p: (gpio::$SCK<Alternate>, gpio::$RX<Input<MISOMODE>>, gpio::$SDA<Alternate> $(, &mut $MAPR)?)) -> Self {
+                    $(p.3.modify_mapr($remapex);)?
+                    Self::$rname { sck: p.0, miso: p.1, mosi: p.2 }
+                }
+            }
+
+            impl From<(gpio::$SCK, gpio::$SDA $(, &mut $MAPR)?)> for Pins {
+                fn from(p: (gpio::$SCK, gpio::$SDA $(, &mut $MAPR)?)) -> Self {
+                    $(p.3.modify_mapr($remapex);)?
+                    let mut cr = Cr::new();
+                    Self::$rname { sck: p.0.into_alternate_push_pull(&mut cr), miso: p.1.into_mode::<Input<MISOMODE>>, sda: p.2.into_alternate_push_pull(&mut cr) }
+                }
+            }
+        )+
+    }
+}
+use remap;
 
 mod sealed {
     pub trait Remap {
@@ -144,10 +179,6 @@ pub struct NoSck;
 pub struct NoMiso;
 /// A filler type for when the Mosi pin is unnecessary
 pub struct NoMosi;
-
-pub trait RxMode {}
-impl RxMode for Floating {}
-impl RxMode for PullUp {}
 
 impl<REMAP> Sck<REMAP> for NoSck {}
 impl<REMAP> Miso<REMAP> for NoMiso {}
