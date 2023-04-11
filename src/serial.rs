@@ -141,7 +141,7 @@ macro_rules! remap {
                 fn from(p: (gpio::$TX, gpio::$RX, &mut MAPR)) -> Self {
                     p.2.modify_mapr($remapex);
                     let mut cr = Cr::new();
-                    Self::$rname { tx: p.0.into_mode::<Alternate<OUTMODE>>(&mut cr), rx: p.1.into_mode::<Input<INMODE>>(&mut cr) }
+                    Self::$rname { tx: p.0.into_mode(&mut cr), rx: p.1.into_mode::<Input<INMODE>>(&mut cr) }
                 }
             }
         )+
