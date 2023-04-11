@@ -6,7 +6,7 @@
 
 use crate::gpio::{self, Alternate, Cr, OpenDrain};
 use crate::hal::blocking::i2c::{Read, Write, WriteRead};
-use crate::pac::{AFIO, DWT, I2C1, I2C2, RCC};
+use crate::pac::{DWT, I2C1, I2C2, RCC};
 use crate::rcc::{BusClock, Clocks, Enable, Reset};
 use crate::time::{kHz, Hertz};
 use core::ops::Deref;
@@ -82,6 +82,8 @@ impl From<Hertz> for Mode {
 }
 
 pub mod i2c1 {
+    use crate::afio::MAPR;
+
     use super::*;
 
     pub enum Pins {
@@ -98,23 +100,23 @@ pub mod i2c1 {
         From<(
             gpio::PB6<Alternate<OpenDrain>>,
             gpio::PB7<Alternate<OpenDrain>>,
+            &mut MAPR,
         )> for Pins
     {
         fn from(
             p: (
                 gpio::PB6<Alternate<OpenDrain>>,
                 gpio::PB7<Alternate<OpenDrain>>,
+                &mut MAPR,
             ),
         ) -> Self {
-            let mapr = unsafe { &(*AFIO::ptr()).mapr };
-            mapr.modify(|_, w| w.i2c1_remap().bit(false));
+            p.2.modify_mapr(|_, w| w.i2c1_remap().bit(false));
             Self::No(p.0, p.1)
         }
     }
-    impl From<(gpio::PB6, gpio::PB7)> for Pins {
-        fn from(p: (gpio::PB6, gpio::PB7)) -> Self {
-            let mapr = unsafe { &(*AFIO::ptr()).mapr };
-            mapr.modify(|_, w| w.i2c1_remap().bit(false));
+    impl From<(gpio::PB6, gpio::PB7, &mut MAPR)> for Pins {
+        fn from(p: (gpio::PB6, gpio::PB7, &mut MAPR)) -> Self {
+            p.2.modify_mapr(|_, w| w.i2c1_remap().bit(false));
             let mut crl = Cr::new();
             Self::No(
                 p.0.into_alternate_open_drain(&mut crl),
@@ -126,23 +128,23 @@ pub mod i2c1 {
         From<(
             gpio::PB8<Alternate<OpenDrain>>,
             gpio::PB9<Alternate<OpenDrain>>,
+            &mut MAPR,
         )> for Pins
     {
         fn from(
             p: (
                 gpio::PB8<Alternate<OpenDrain>>,
                 gpio::PB9<Alternate<OpenDrain>>,
+                &mut MAPR,
             ),
         ) -> Self {
-            let mapr = unsafe { &(*AFIO::ptr()).mapr };
-            mapr.modify(|_, w| w.i2c1_remap().bit(true));
+            p.2.modify_mapr(|_, w| w.i2c1_remap().bit(true));
             Self::Remap1(p.0, p.1)
         }
     }
-    impl From<(gpio::PB8, gpio::PB9)> for Pins {
-        fn from(p: (gpio::PB8, gpio::PB9)) -> Self {
-            let mapr = unsafe { &(*AFIO::ptr()).mapr };
-            mapr.modify(|_, w| w.i2c1_remap().bit(true));
+    impl From<(gpio::PB8, gpio::PB9, &mut MAPR)> for Pins {
+        fn from(p: (gpio::PB8, gpio::PB9, &mut MAPR)) -> Self {
+            p.2.modify_mapr(|_, w| w.i2c1_remap().bit(true));
             let mut crh = Cr::new();
             Self::Remap1(
                 p.0.into_alternate_open_drain(&mut crh),
