@@ -86,107 +86,53 @@ pub mod i2c1 {
 
     use super::*;
 
-    pub enum Pins {
-        No(
-            gpio::PB6<Alternate<OpenDrain>>,
-            gpio::PB7<Alternate<OpenDrain>>,
-        ),
-        Remap1(
-            gpio::PB8<Alternate<OpenDrain>>,
-            gpio::PB9<Alternate<OpenDrain>>,
-        ),
-    }
-    impl
-        From<(
-            gpio::PB6<Alternate<OpenDrain>>,
-            gpio::PB7<Alternate<OpenDrain>>,
-            &mut MAPR,
-        )> for Pins
-    {
-        fn from(
-            p: (
-                gpio::PB6<Alternate<OpenDrain>>,
-                gpio::PB7<Alternate<OpenDrain>>,
-                &mut MAPR,
-            ),
-        ) -> Self {
-            p.2.modify_mapr(|_, w| w.i2c1_remap().bit(false));
-            Self::No(p.0, p.1)
-        }
-    }
-    impl From<(gpio::PB6, gpio::PB7, &mut MAPR)> for Pins {
-        fn from(p: (gpio::PB6, gpio::PB7, &mut MAPR)) -> Self {
-            p.2.modify_mapr(|_, w| w.i2c1_remap().bit(false));
-            let mut crl = Cr::new();
-            Self::No(
-                p.0.into_alternate_open_drain(&mut crl),
-                p.1.into_alternate_open_drain(&mut crl),
-            )
-        }
-    }
-    impl
-        From<(
-            gpio::PB8<Alternate<OpenDrain>>,
-            gpio::PB9<Alternate<OpenDrain>>,
-            &mut MAPR,
-        )> for Pins
-    {
-        fn from(
-            p: (
-                gpio::PB8<Alternate<OpenDrain>>,
-                gpio::PB9<Alternate<OpenDrain>>,
-                &mut MAPR,
-            ),
-        ) -> Self {
-            p.2.modify_mapr(|_, w| w.i2c1_remap().bit(true));
-            Self::Remap1(p.0, p.1)
-        }
-    }
-    impl From<(gpio::PB8, gpio::PB9, &mut MAPR)> for Pins {
-        fn from(p: (gpio::PB8, gpio::PB9, &mut MAPR)) -> Self {
-            p.2.modify_mapr(|_, w| w.i2c1_remap().bit(true));
-            let mut crh = Cr::new();
-            Self::Remap1(
-                p.0.into_alternate_open_drain(&mut crh),
-                p.1.into_alternate_open_drain(&mut crh),
-            )
-        }
+    remap! {
+        Pins: [
+            No, PB6, PB7 => MAPR { |_, w| w.i2c1_remap().bit(false) };
+            Remap, PB8, PB9 => MAPR { |_, w| w.i2c1_remap().bit(true) };
+        ]
     }
 }
 pub mod i2c2 {
     use super::*;
 
-    pub enum Pins {
-        No(
-            gpio::PB10<Alternate<OpenDrain>>,
-            gpio::PB11<Alternate<OpenDrain>>,
-        ),
+    remap! {
+        Pins: [
+            No, PB10, PB11;
+        ]
     }
-    impl
-        From<(
-            gpio::PB10<Alternate<OpenDrain>>,
-            gpio::PB11<Alternate<OpenDrain>>,
-        )> for Pins
-    {
-        fn from(
-            p: (
-                gpio::PB10<Alternate<OpenDrain>>,
-                gpio::PB11<Alternate<OpenDrain>>,
-            ),
-        ) -> Self {
-            Self::No(p.0, p.1)
+
+}
+
+macro_rules! remap {
+    ($name:ident: [
+        $($rname:ident, $SCL:ident, $SDA:ident $( => $MAPR:ident { $remapex:expr })?;)+
+    ]) => {
+        pub enum $name {
+            $(
+                $rname { scl: gpio::$SCL<Alternate<OpenDrain>>, sda: gpio::$SDA<Alternate<OpenDrain>> },
+            )+
         }
-    }
-    impl From<(gpio::PB10, gpio::PB11)> for Pins {
-        fn from(p: (gpio::PB10, gpio::PB11)) -> Self {
-            let mut crh = Cr::new();
-            Self::No(
-                p.0.into_alternate_open_drain(&mut crh),
-                p.1.into_alternate_open_drain(&mut crh),
-            )
-        }
+
+        $(
+            impl From<(gpio::$SCL<Alternate<OpenDrain>>, gpio::$SDA<Alternate<OpenDrain>> $(, &mut $MAPR)?)> for Pins {
+                fn from(p: (gpio::$SCL<Alternate<OpenDrain>>, gpio::$SDA<Alternate<OpenDrain>> $(, &mut $MAPR)?)) -> Self {
+                    $(p.2.modify_mapr($remapex);)?
+                    Self::$rname { scl: p.0, sda: p.1 }
+                }
+            }
+
+            impl From<(gpio::$SCL, gpio::$SDA $(, &mut $MAPR)?)> for Pins {
+                fn from(p: (gpio::$SCL, gpio::$SDA $(, &mut $MAPR)?)) -> Self {
+                    $(p.2.modify_mapr($remapex);)?
+                    let mut cr = Cr::new();
+                    Self::$rname { scl: p.0.into_alternate_open_drain(&mut cr), sda: p.1.into_alternate_open_drain(&mut cr) }
+                }
+            }
+        )+
     }
 }
+use remap;
 
 /// I2C peripheral operating in master mode
 pub struct I2c<I2C: Instance> {
