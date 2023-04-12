@@ -85,8 +85,8 @@ pub mod usart1 {
 
     remap! {
         Pins: [
-            No, PA9, PA10 => { |_, w| w.usart1_remap().bit(false) };
-            Remap, PB6, PB7  => { |_, w| w.usart1_remap().bit(true) };
+            All, Tx, Rx, PA9, PA10 => { |_, w| w.usart1_remap().bit(false) };
+            Remap, RemapTx, RemapRx, PB6, PB7  => { |_, w| w.usart1_remap().bit(true) };
         ]
     }
 }
@@ -96,8 +96,8 @@ pub mod usart2 {
 
     remap! {
         Pins: [
-            No, PA2, PA3 => { |_, w| w.usart2_remap().bit(false) };
-            Remap, PD5, PD6 => { |_, w| w.usart2_remap().bit(true) };
+            All, Tx, Rx, PA2, PA3 => { |_, w| w.usart2_remap().bit(false) };
+            Remap, RemapTx, RemapRx, PD5, PD6 => { |_, w| w.usart2_remap().bit(true) };
         ]
     }
 }
@@ -107,20 +107,22 @@ pub mod usart3 {
 
     remap! {
         Pins: [
-            No, PB10, PB11 => { |_, w| unsafe { w.usart3_remap().bits(0b00)} };
-            Remap1, PC10, PC11 => { |_, w| unsafe { w.usart3_remap().bits(0b01)} };
-            Remap2, PD8, PD9 => { |_, w| unsafe { w.usart3_remap().bits(0b11)} };
+            RxTx, Tx, Rx, PB10, PB11 => { |_, w| unsafe { w.usart3_remap().bits(0b00)} };
+            Remap1, Remap1Tx, Remap1Rx, PC10, PC11 => { |_, w| unsafe { w.usart3_remap().bits(0b01)} };
+            Remap2, Remap2Tx, Remap2Rx, PD8, PD9 => { |_, w| unsafe { w.usart3_remap().bits(0b11)} };
         ]
     }
 }
 
 macro_rules! remap {
     ($name:ident: [
-        $($rname:ident, $TX:ident, $RX:ident => { $remapex:expr };)+
+        $($rname:ident, $txonly:ident, $rxonly:ident, $TX:ident, $RX:ident => { $remapex:expr };)+
     ]) => {
         pub enum $name<OUTMODE, INMODE> {
             $(
                 $rname { tx: gpio::$TX<Alternate<OUTMODE>>, rx: gpio::$RX<Input<INMODE>> },
+                $txonly { tx: gpio::$TX<Alternate<OUTMODE>> },
+                $rxonly { rx: gpio::$RX<Input<INMODE>> },
             )+
         }
 
@@ -139,9 +141,34 @@ macro_rules! remap {
                 INMODE: InMode,
             {
                 fn from(p: (gpio::$TX, gpio::$RX, &mut MAPR)) -> Self {
-                    p.2.modify_mapr($remapex);
                     let mut cr = Cr::new();
-                    Self::$rname { tx: p.0.into_mode(&mut cr), rx: p.1.into_mode(&mut cr) }
+                    let tx = p.0.into_mode(&mut cr);
+                    let rx = p.1.into_mode(&mut cr);
+                    p.2.modify_mapr($remapex);
+                    Self::$rname { tx, rx }
+                }
+            }
+
+            impl<OUTMODE> From<(gpio::$TX, &mut MAPR)> for $name<OUTMODE, Floating>
+            where
+                Alternate<OUTMODE>: PinMode,
+            {
+                fn from(p: (gpio::$TX, &mut MAPR)) -> Self {
+                    let tx = p.0.into_mode(&mut Cr::new());
+                    p.1.modify_mapr($remapex);
+                    Self::$txonly { tx }
+                }
+            }
+
+            impl<INMODE> From<(gpio::$RX, &mut MAPR)> for $name<PushPull, INMODE>
+            where
+                Input<INMODE>: PinMode,
+                INMODE: InMode,
+            {
+                fn from(p: (gpio::$RX, &mut MAPR)) -> Self {
+                    let rx = p.0.into_mode(&mut Cr::new());
+                    p.1.modify_mapr($remapex);
+                    Self::$rxonly { rx }
                 }
             }
         )+

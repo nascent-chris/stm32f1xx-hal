@@ -84,8 +84,8 @@ pub mod spi1 {
 
     remap! {
         MasterPins, SlavePins: [
-            No, PA5, PA6, PA7 => MAPR { |_, w| w.spi1_remap().bit(false) };
-            Remap, PB3, PB4, PB5  => MAPR { |_, w| w.spi1_remap().bit(true) };
+            All, Nomosi, Nomiso, PA5, PA6, PA7 => MAPR { |_, w| w.spi1_remap().bit(false) };
+            Remap, RemapNomosi, RemapNomiso, PB3, PB4, PB5  => MAPR { |_, w| w.spi1_remap().bit(true) };
         ]
     }
 }
@@ -95,7 +95,7 @@ pub mod spi2 {
 
     remap! {
         MasterPins, SlavePins: [
-            No, PB13, PB14, PB15;
+            All, Nomosi, Nomiso, PB13, PB14, PB15;
         ]
     }
 }
@@ -106,34 +106,44 @@ pub mod spi3 {
     remap! {
         MasterPins, SlavePins: [
             #[cfg(not(feature = "connectivity"))]
-            No, PB3, PB4, PB5;
+            All, Nomosi, Nomiso, PB3, PB4, PB5;
             #[cfg(feature = "connectivity")]
-            No, PB3, PB4, PB5 => MAPR { |_, w| w.spi3_remap().bit(false) };
+            All, Nomosi, Nomiso, PB3, PB4, PB5 => MAPR { |_, w| w.spi3_remap().bit(false) };
             #[cfg(feature = "connectivity")]
-            Remap, PC10, PC11, PC12  => MAPR { |_, w| w.spi3_remap().bit(true) };
+            Remap, RemapNomosi, RemapNomiso, PC10, PC11, PC12  => MAPR { |_, w| w.spi3_remap().bit(true) };
         ]
     }
 }
 
 macro_rules! remap {
     ($master:ident, $slave:ident: [
-        $($(#[$attr:meta])* $rname:ident, $SCK:ident, $MISO:ident, $MOSI:ident $( => $MAPR:ident { $remapex:expr })?;)+
+        $($(#[$attr:meta])* $rname:ident, $nomosi:ident, $nomiso:ident, $SCK:ident, $MISO:ident, $MOSI:ident $( => $MAPR:ident { $remapex:expr })?;)+
     ]) => {
         pub enum $master<INMODE> {
             $(
                 $(#[$attr])*
                 $rname { sck: gpio::$SCK<Alternate>, miso: gpio::$MISO<Input<INMODE>>, mosi: gpio::$MOSI<Alternate> },
+                $(#[$attr])*
+                $nomosi { sck: gpio::$SCK<Alternate>, miso: gpio::$MISO<Input<INMODE>> },
+                $(#[$attr])*
+                $nomiso { sck: gpio::$SCK<Alternate>, mosi: gpio::$MOSI<Alternate> },
             )+
         }
 
         pub enum $slave<OUTMODE, INMODE> {
             $(
                 $(#[$attr])*
-                $rname { sck: gpio::$SCK<Alternate>, miso: gpio::$MISO<Alternate<OUTMODE>>, mosi: gpio::$MOSI<Input<INMODE>> },
+                $rname { sck: gpio::$SCK, miso: gpio::$MISO<Alternate<OUTMODE>>, mosi: gpio::$MOSI<Input<INMODE>> },
+                $(#[$attr])*
+                $nomosi { sck: gpio::$SCK, miso: gpio::$MISO<Alternate<OUTMODE>> },
+                $(#[$attr])*
+                $nomiso { sck: gpio::$SCK, mosi: gpio::$MOSI<Input<INMODE>> },
             )+
         }
 
         $(
+            // For master mode
+
             $(#[$attr])*
             impl<INMODE: InMode> From<(gpio::$SCK<Alternate>, gpio::$MISO<Input<INMODE>>, gpio::$MOSI<Alternate> $(, &mut $MAPR)?)> for $master<INMODE> {
                 fn from(p: (gpio::$SCK<Alternate>, gpio::$MISO<Input<INMODE>>, gpio::$MOSI<Alternate> $(, &mut $MAPR)?)) -> Self {
@@ -149,15 +159,54 @@ macro_rules! remap {
                 INMODE: InMode,
             {
                 fn from(p: (gpio::$SCK, gpio::$MISO, gpio::$MOSI $(, &mut $MAPR)?)) -> Self {
-                    $(p.3.modify_mapr($remapex);)?
                     let mut cr = Cr::new();
-                    Self::$rname { sck: p.0.into_mode(&mut cr), miso: p.1.into_mode(&mut cr), mosi: p.2.into_mode(&mut cr) }
+                    let sck = p.0.into_mode(&mut cr);
+                    let miso = p.1.into_mode(&mut cr);
+                    let mosi = p.2.into_mode(&mut cr);
+                    $(p.3.modify_mapr($remapex);)?
+                    Self::$rname { sck, miso, mosi }
                 }
             }
 
             $(#[$attr])*
-            impl<OUTMODE, INMODE: InMode> From<(gpio::$SCK<Alternate>, gpio::$MISO<Alternate<OUTMODE>>, gpio::$MOSI<Input<INMODE>> $(, &mut $MAPR)?)> for $slave<OUTMODE, INMODE> {
-                fn from(p: (gpio::$SCK<Alternate>, gpio::$MISO<Alternate<OUTMODE>>, gpio::$MOSI<Input<INMODE>> $(, &mut $MAPR)?)) -> Self {
+            impl<INMODE: InMode> From<(gpio::$SCK<Alternate>, gpio::$MISO<Input<INMODE>> $(, &mut $MAPR)?)> for $master<INMODE> {
+                fn from(p: (gpio::$SCK<Alternate>, gpio::$MISO<Input<INMODE>> $(, &mut $MAPR)?)) -> Self {
+                    $(p.2.modify_mapr($remapex);)?
+                    Self::$nomosi { sck: p.0, miso: p.1 }
+                }
+            }
+
+            $(#[$attr])*
+            impl<INMODE> From<(gpio::$SCK, gpio::$MISO $(, &mut $MAPR)?)> for $master<INMODE>
+            where
+                Input<INMODE>: PinMode,
+                INMODE: InMode,
+            {
+                fn from(p: (gpio::$SCK, gpio::$MISO $(, &mut $MAPR)?)) -> Self {
+                    let mut cr = Cr::new();
+                    let sck = p.0.into_mode(&mut cr);
+                    let miso = p.1.into_mode(&mut cr);
+                    $(p.2.modify_mapr($remapex);)?
+                    Self::$nomosi { sck, miso }
+                }
+            }
+
+            $(#[$attr])*
+            impl From<(gpio::$SCK, gpio::$MOSI $(, &mut $MAPR)?)> for $master<Floating> {
+                fn from(p: (gpio::$SCK, gpio::$MOSI $(, &mut $MAPR)?)) -> Self {
+                    let mut cr = Cr::new();
+                    let sck = p.0.into_mode(&mut cr);
+                    let mosi = p.1.into_mode(&mut cr);
+                    $(p.2.modify_mapr($remapex);)?
+                    Self::$nomiso { sck, mosi }
+                }
+            }
+
+            // For slave mode
+
+            $(#[$attr])*
+            impl<OUTMODE, INMODE: InMode> From<(gpio::$SCK, gpio::$MISO<Alternate<OUTMODE>>, gpio::$MOSI<Input<INMODE>> $(, &mut $MAPR)?)> for $slave<OUTMODE, INMODE> {
+                fn from(p: (gpio::$SCK, gpio::$MISO<Alternate<OUTMODE>>, gpio::$MOSI<Input<INMODE>> $(, &mut $MAPR)?)) -> Self {
                     $(p.3.modify_mapr($remapex);)?
                     Self::$rname { sck: p.0, miso: p.1, mosi: p.2 }
                 }
@@ -171,9 +220,41 @@ macro_rules! remap {
                 INMODE: InMode,
             {
                 fn from(p: (gpio::$SCK, gpio::$MISO, gpio::$MOSI $(, &mut $MAPR)?)) -> Self {
-                    $(p.3.modify_mapr($remapex);)?
                     let mut cr = Cr::new();
-                    Self::$rname { sck: p.0.into_mode(&mut cr), miso: p.1.into_mode(&mut cr), mosi: p.2.into_mode(&mut cr) }
+                    let sck = p.0.into_mode(&mut cr);
+                    let miso = p.1.into_mode(&mut cr);
+                    let mosi = p.2.into_mode(&mut cr);
+                    $(p.3.modify_mapr($remapex);)?
+                    Self::$rname { sck, miso, mosi }
+                }
+            }
+
+            $(#[$attr])*
+            impl<OUTMODE> From<(gpio::$SCK, gpio::$MISO $(, &mut $MAPR)?)> for $slave<OUTMODE, Floating>
+            where
+                Alternate<OUTMODE>: PinMode,
+            {
+                fn from(p: (gpio::$SCK, gpio::$MISO $(, &mut $MAPR)?)) -> Self {
+                    let mut cr = Cr::new();
+                    let sck = p.0.into_mode(&mut cr);
+                    let miso = p.1.into_mode(&mut cr);
+                    $(p.2.modify_mapr($remapex);)?
+                    Self::$nomosi { sck, miso }
+                }
+            }
+
+            $(#[$attr])*
+            impl<INMODE> From<(gpio::$SCK, gpio::$MOSI $(, &mut $MAPR)?)> for $slave<PushPull, INMODE>
+            where
+                Input<INMODE>: PinMode,
+                INMODE: InMode,
+            {
+                fn from(p: (gpio::$SCK, gpio::$MOSI $(, &mut $MAPR)?)) -> Self {
+                    let mut cr = Cr::new();
+                    let sck = p.0.into_mode(&mut cr);
+                    let mosi = p.1.into_mode(&mut cr);
+                    $(p.2.modify_mapr($remapex);)?
+                    Self::$nomiso { sck, mosi }
                 }
             }
         )+
@@ -245,20 +326,6 @@ pub enum SpiBitFormat {
     /// Most significant bit first
     MsbFirst,
 }
-/*
-/// A filler type for when the SCK pin is unnecessary
-pub struct NoSck;
-/// A filler type for when the Miso pin is unnecessary
-pub struct NoMiso;
-/// A filler type for when the Mosi pin is unnecessary
-pub struct NoMosi;
-
-impl<REMAP> Sck<REMAP> for NoSck {}
-impl<REMAP> Miso<REMAP> for NoMiso {}
-impl<REMAP> Mosi<REMAP> for NoMosi {}
-impl<REMAP> So<REMAP> for NoMiso {}
-impl<REMAP> Si<REMAP> for NoMosi {}
- */
 
 pub trait Instance:
     crate::Sealed + Deref<Target = crate::pac::spi1::RegisterBlock> + Enable + Reset + BusClock
@@ -596,68 +663,122 @@ impl<SPI: Instance, OUTMODE, INMODE> SpiSlave<SPI, u16, OUTMODE, INMODE> {
     }
 }
 
-impl<SPI: Instance, FrameSize: Copy> crate::hal::spi::FullDuplex<FrameSize>
-    for SpiInner<SPI, FrameSize>
-{
-    type Error = Error;
+mod hal02 {
+    use super::*;
+    use crate::hal::{blocking::spi as blocking, spi::FullDuplex};
 
-    fn read(&mut self) -> nb::Result<FrameSize, Error> {
-        let sr = self.spi.sr.read();
+    impl<SPI: Instance, FrameSize: Copy> SpiInner<SPI, FrameSize> {
+        fn read(&mut self) -> nb::Result<FrameSize, Error> {
+            let sr = self.spi.sr.read();
 
-        Err(if sr.ovr().bit_is_set() {
-            nb::Error::Other(Error::Overrun)
-        } else if sr.modf().bit_is_set() {
-            nb::Error::Other(Error::ModeFault)
-        } else if sr.crcerr().bit_is_set() {
-            nb::Error::Other(Error::Crc)
-        } else if sr.rxne().bit_is_set() {
-            // NOTE(read_volatile) read only 1 byte (the svd2rust API only allows
-            // reading a half-word)
-            return Ok(self.read_data_reg());
-        } else {
-            nb::Error::WouldBlock
-        })
+            Err(if sr.ovr().bit_is_set() {
+                nb::Error::Other(Error::Overrun)
+            } else if sr.modf().bit_is_set() {
+                nb::Error::Other(Error::ModeFault)
+            } else if sr.crcerr().bit_is_set() {
+                nb::Error::Other(Error::Crc)
+            } else if sr.rxne().bit_is_set() {
+                // NOTE(read_volatile) read only 1 byte (the svd2rust API only allows
+                // reading a half-word)
+                return Ok(self.read_data_reg());
+            } else {
+                nb::Error::WouldBlock
+            })
+        }
+
+        fn send(&mut self, data: FrameSize) -> nb::Result<(), Error> {
+            let sr = self.spi.sr.read();
+
+            Err(if sr.modf().bit_is_set() {
+                nb::Error::Other(Error::ModeFault)
+            } else if sr.crcerr().bit_is_set() {
+                nb::Error::Other(Error::Crc)
+            } else if sr.txe().bit_is_set() {
+                // NOTE(write_volatile) see note above
+                self.write_data_reg(data);
+                return Ok(());
+            } else {
+                nb::Error::WouldBlock
+            })
+        }
     }
 
-    fn send(&mut self, data: FrameSize) -> nb::Result<(), Error> {
-        let sr = self.spi.sr.read();
+    impl<SPI: Instance, FrameSize: Copy, INMODE> FullDuplex<FrameSize> for Spi<SPI, FrameSize, INMODE> {
+        type Error = Error;
 
-        Err(if sr.modf().bit_is_set() {
-            nb::Error::Other(Error::ModeFault)
-        } else if sr.crcerr().bit_is_set() {
-            nb::Error::Other(Error::Crc)
-        } else if sr.txe().bit_is_set() {
-            // NOTE(write_volatile) see note above
-            self.write_data_reg(data);
-            return Ok(());
-        } else {
-            nb::Error::WouldBlock
-        })
+        fn read(&mut self) -> nb::Result<FrameSize, Error> {
+            self.inner.read()
+        }
+        fn send(&mut self, data: FrameSize) -> nb::Result<(), Error> {
+            self.inner.send(data)
+        }
     }
-}
 
-impl<SPI: Instance, FrameSize: Copy> crate::hal::blocking::spi::transfer::Default<FrameSize>
-    for SpiInner<SPI, FrameSize>
-{
-}
-
-impl<SPI: Instance> crate::hal::blocking::spi::Write<u8> for SpiInner<SPI, u8> {
-    type Error = Error;
-
-    // Implement write as per the "Transmit only procedure" page 712
-    // of RM0008 Rev 20. This is more than twice as fast as the
-    // default Write<> implementation (which reads and drops each
-    // received value)
-    fn write(&mut self, words: &[u8]) -> Result<(), Error> {
-        self.spi_write(words)
+    impl<SPI: Instance, FrameSize: Copy, INMODE> blocking::transfer::Default<FrameSize>
+        for Spi<SPI, FrameSize, INMODE>
+    {
     }
-}
 
-impl<SPI: Instance> crate::hal::blocking::spi::Write<u16> for SpiInner<SPI, u16> {
-    type Error = Error;
+    impl<SPI: Instance, INMODE> blocking::Write<u8> for Spi<SPI, u8, INMODE> {
+        type Error = Error;
 
-    fn write(&mut self, words: &[u16]) -> Result<(), Error> {
-        self.spi_write(words)
+        // Implement write as per the "Transmit only procedure" page 712
+        // of RM0008 Rev 20. This is more than twice as fast as the
+        // default Write<> implementation (which reads and drops each
+        // received value)
+        fn write(&mut self, words: &[u8]) -> Result<(), Error> {
+            self.spi_write(words)
+        }
+    }
+
+    impl<SPI: Instance, INMODE> blocking::Write<u16> for Spi<SPI, u16, INMODE> {
+        type Error = Error;
+
+        fn write(&mut self, words: &[u16]) -> Result<(), Error> {
+            self.spi_write(words)
+        }
+    }
+
+    // NOTE: this is master mode trait. Use this imlementation on your own risk
+    impl<SPI: Instance, FrameSize: Copy, OUTMODE, INMODE> FullDuplex<FrameSize>
+        for SpiSlave<SPI, FrameSize, OUTMODE, INMODE>
+    {
+        type Error = Error;
+
+        fn read(&mut self) -> nb::Result<FrameSize, Error> {
+            self.inner.read()
+        }
+        fn send(&mut self, data: FrameSize) -> nb::Result<(), Error> {
+            self.inner.send(data)
+        }
+    }
+
+    // NOTE: this is master mode trait. Use this imlementation on your own risk
+    impl<SPI: Instance, FrameSize: Copy, OUTMODE, INMODE> blocking::transfer::Default<FrameSize>
+        for SpiSlave<SPI, FrameSize, OUTMODE, INMODE>
+    {
+    }
+
+    // NOTE: this is master mode trait. Use this imlementation on your own risk
+    impl<SPI: Instance, OUTMODE, INMODE> blocking::Write<u8> for SpiSlave<SPI, u8, OUTMODE, INMODE> {
+        type Error = Error;
+
+        // Implement write as per the "Transmit only procedure" page 712
+        // of RM0008 Rev 20. This is more than twice as fast as the
+        // default Write<> implementation (which reads and drops each
+        // received value)
+        fn write(&mut self, words: &[u8]) -> Result<(), Error> {
+            self.spi_write(words)
+        }
+    }
+
+    // NOTE: this is master mode trait. Use this imlementation on your own risk
+    impl<SPI: Instance, OUTMODE, INMODE> blocking::Write<u16> for SpiSlave<SPI, u16, OUTMODE, INMODE> {
+        type Error = Error;
+
+        fn write(&mut self, words: &[u16]) -> Result<(), Error> {
+            self.spi_write(words)
+        }
     }
 }
 

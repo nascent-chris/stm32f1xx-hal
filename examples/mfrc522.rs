@@ -32,13 +32,12 @@ fn main() -> ! {
     let sck = gpioa.pa5.into_alternate_push_pull(&mut gpioa.crl);
     let miso = gpioa.pa6;
     let mosi = gpioa.pa7.into_alternate_push_pull(&mut gpioa.crl);
-    let spi = Spi::spi1(
+    let spi = Spi::new(
         dp.SPI1,
-        (sck, miso, mosi),
-        &mut afio.mapr,
+        (sck, miso, mosi, &mut afio.mapr),
         MODE,
         1.MHz(),
-        clocks,
+        &clocks,
     );
 
     let nss = gpioa.pa4.into_push_pull_output(&mut gpioa.crl);
