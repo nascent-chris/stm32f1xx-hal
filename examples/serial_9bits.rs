@@ -14,7 +14,7 @@ use cortex_m_rt::entry;
 use nb::block;
 use panic_halt as _;
 use stm32f1xx_hal::{
-    gpio::{Floating, PullUp, PushPull},
+    gpio::{Floating, PushPull},
     pac,
     prelude::*,
     serial::{self, Config, Serial},

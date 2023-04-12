@@ -101,7 +101,6 @@ pub mod i2c2 {
             No, PB10, PB11;
         ]
     }
-
 }
 
 macro_rules! remap {
@@ -115,18 +114,18 @@ macro_rules! remap {
         }
 
         $(
-            impl From<(gpio::$SCL<Alternate<OpenDrain>>, gpio::$SDA<Alternate<OpenDrain>> $(, &mut $MAPR)?)> for Pins {
+            impl From<(gpio::$SCL<Alternate<OpenDrain>>, gpio::$SDA<Alternate<OpenDrain>> $(, &mut $MAPR)?)> for $name {
                 fn from(p: (gpio::$SCL<Alternate<OpenDrain>>, gpio::$SDA<Alternate<OpenDrain>> $(, &mut $MAPR)?)) -> Self {
                     $(p.2.modify_mapr($remapex);)?
                     Self::$rname { scl: p.0, sda: p.1 }
                 }
             }
 
-            impl From<(gpio::$SCL, gpio::$SDA $(, &mut $MAPR)?)> for Pins {
+            impl From<(gpio::$SCL, gpio::$SDA $(, &mut $MAPR)?)> for $name {
                 fn from(p: (gpio::$SCL, gpio::$SDA $(, &mut $MAPR)?)) -> Self {
                     $(p.2.modify_mapr($remapex);)?
                     let mut cr = Cr::new();
-                    Self::$rname { scl: p.0.into_alternate_open_drain(&mut cr), sda: p.1.into_alternate_open_drain(&mut cr) }
+                    Self::$rname { scl: p.0.into_mode(&mut cr), sda: p.1.into_mode(&mut cr) }
                 }
             }
         )+
