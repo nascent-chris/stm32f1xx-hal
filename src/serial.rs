@@ -176,6 +176,26 @@ macro_rules! remap {
 }
 use remap;
 
+pub trait SerialExt: Sized + Instance {
+    fn serial<OUTMODE, INMODE>(
+        self,
+        pins: impl Into<Self::Pins<OUTMODE, INMODE>>,
+        config: impl Into<Config>,
+        clocks: &Clocks,
+    ) -> Serial<Self, OUTMODE, INMODE>;
+}
+
+impl<USART: Instance> SerialExt for USART {
+    fn serial<OUTMODE, INMODE>(
+        self,
+        pins: impl Into<Self::Pins<OUTMODE, INMODE>>,
+        config: impl Into<Config>,
+        clocks: &Clocks,
+    ) -> Serial<Self, OUTMODE, INMODE> {
+        Serial::new(self, pins, config, clocks)
+    }
+}
+
 use crate::pac::usart1 as uart_base;
 
 pub trait Instance:

@@ -135,6 +135,35 @@ macro_rules! remap {
 }
 use remap;
 
+pub trait I2cExt: Sized + Instance {
+    fn i2c(self, pins: impl Into<Self::Pins>, mode: impl Into<Mode>, clocks: &Clocks) -> I2c<Self>;
+
+    fn blocking_i2c(
+        self,
+        pins: impl Into<Self::Pins>,
+        mode: impl Into<Mode>,
+        clocks: &Clocks,
+        start_timeout_us: u32,
+        start_retries: u8,
+        addr_timeout_us: u32,
+        data_timeout_us: u32,
+    ) -> BlockingI2c<Self> {
+        Self::i2c(self, pins, mode, clocks).blocking(
+            start_timeout_us,
+            start_retries,
+            addr_timeout_us,
+            data_timeout_us,
+            clocks,
+        )
+    }
+}
+
+impl<I2C: Instance> I2cExt for I2C {
+    fn i2c(self, pins: impl Into<Self::Pins>, mode: impl Into<Mode>, clocks: &Clocks) -> I2c<Self> {
+        I2c::new(self, pins, mode, clocks)
+    }
+}
+
 /// I2C peripheral operating in master mode
 pub struct I2c<I2C: Instance> {
     i2c: I2C,
@@ -158,18 +187,18 @@ impl Instance for I2C2 {
 
 impl<I2C: Instance> I2c<I2C> {
     /// Creates a generic I2C object
-    pub fn new<M: Into<Mode>>(
+    pub fn new(
         i2c: I2C,
         pins: impl Into<I2C::Pins>,
-        mode: M,
-        clocks: Clocks,
+        mode: impl Into<Mode>,
+        clocks: &Clocks,
     ) -> Self {
         let mode = mode.into();
         let rcc = unsafe { &(*RCC::ptr()) };
         I2C::enable(rcc);
         I2C::reset(rcc);
 
-        let pclk1 = I2C::clock(&clocks);
+        let pclk1 = I2C::clock(clocks);
 
         assert!(mode.get_frequency() <= kHz(400));
 

@@ -262,6 +262,56 @@ macro_rules! remap {
 }
 use remap;
 
+pub trait SpiExt: Sized + Instance {
+    fn spi<INMODE>(
+        self,
+        pins: impl Into<Self::MasterPins<INMODE>>,
+        mode: Mode,
+        freq: Hertz,
+        clocks: &Clocks,
+    ) -> Spi<Self, u8, INMODE>;
+    fn spi_u16<INMODE>(
+        self,
+        pins: impl Into<Self::MasterPins<INMODE>>,
+        mode: Mode,
+        freq: Hertz,
+        clocks: &Clocks,
+    ) -> Spi<Self, u16, INMODE> {
+        Self::spi(self, pins, mode, freq, clocks).frame_size_16bit()
+    }
+    fn spi_slave<OUTMODE, INMODE>(
+        self,
+        pins: impl Into<Self::SlavePins<OUTMODE, INMODE>>,
+        mode: Mode,
+    ) -> SpiSlave<Self, u8, OUTMODE, INMODE>;
+    fn spi_slave_u16<OUTMODE, INMODE>(
+        self,
+        pins: impl Into<Self::SlavePins<OUTMODE, INMODE>>,
+        mode: Mode,
+    ) -> SpiSlave<Self, u16, OUTMODE, INMODE> {
+        Self::spi_slave(self, pins, mode).frame_size_16bit()
+    }
+}
+
+impl<SPI: Instance> SpiExt for SPI {
+    fn spi<INMODE>(
+        self,
+        pins: impl Into<Self::MasterPins<INMODE>>,
+        mode: Mode,
+        freq: Hertz,
+        clocks: &Clocks,
+    ) -> Spi<Self, u8, INMODE> {
+        Spi::new(self, pins, mode, freq, clocks)
+    }
+    fn spi_slave<OUTMODE, INMODE>(
+        self,
+        pins: impl Into<Self::SlavePins<OUTMODE, INMODE>>,
+        mode: Mode,
+    ) -> SpiSlave<Self, u8, OUTMODE, INMODE> {
+        SpiSlave::new(self, pins, mode)
+    }
+}
+
 pub struct SpiInner<SPI, FRAMESIZE> {
     spi: SPI,
     _framesize: PhantomData<FRAMESIZE>,
