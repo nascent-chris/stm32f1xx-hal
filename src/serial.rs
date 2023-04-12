@@ -74,9 +74,9 @@ use crate::pac::{RCC, USART1, USART2, USART3};
 use crate::rcc::{BusClock, Clocks, Enable, Reset};
 use crate::time::{Bps, U32Ext};
 
-pub trait RxMode {}
-impl RxMode for Floating {}
-impl RxMode for PullUp {}
+pub trait InMode {}
+impl InMode for Floating {}
+impl InMode for PullUp {}
 
 // USART REMAPPING, see: https://www.st.com/content/ccc/resource/technical/document/reference_manual/59/b9/ba/7f/11/af/43/d5/CD00171190.pdf/files/CD00171190.pdf/jcr:content/translations/en.CD00171190.pdf
 // Section 9.3.8
@@ -118,30 +118,30 @@ macro_rules! remap {
     ($name:ident: [
         $($rname:ident, $TX:ident, $RX:ident => { $remapex:expr };)+
     ]) => {
-        pub enum $name<OUTMODE, INMODE> where INMODE: RxMode {
+        pub enum $name<OUTMODE, INMODE> {
             $(
                 $rname { tx: gpio::$TX<Alternate<OUTMODE>>, rx: gpio::$RX<Input<INMODE>> },
             )+
         }
 
         $(
-            impl<OUTMODE, INMODE: RxMode> From<(gpio::$TX<Alternate<OUTMODE>>, gpio::$RX<Input<INMODE>>, &mut MAPR)> for Pins<OUTMODE, INMODE> {
+            impl<OUTMODE, INMODE: InMode> From<(gpio::$TX<Alternate<OUTMODE>>, gpio::$RX<Input<INMODE>>, &mut MAPR)> for $name<OUTMODE, INMODE> {
                 fn from(p: (gpio::$TX<Alternate<OUTMODE>>, gpio::$RX<Input<INMODE>>, &mut MAPR)) -> Self {
                     p.2.modify_mapr($remapex);
                     Self::$rname { tx: p.0, rx: p.1 }
                 }
             }
 
-            impl<OUTMODE, INMODE> From<(gpio::$TX, gpio::$RX, &mut MAPR)> for Pins<OUTMODE, INMODE>
+            impl<OUTMODE, INMODE> From<(gpio::$TX, gpio::$RX, &mut MAPR)> for $name<OUTMODE, INMODE>
             where
                 Alternate<OUTMODE>: PinMode,
                 Input<INMODE>: PinMode,
-                INMODE: RxMode,
+                INMODE: InMode,
             {
                 fn from(p: (gpio::$TX, gpio::$RX, &mut MAPR)) -> Self {
                     p.2.modify_mapr($remapex);
                     let mut cr = Cr::new();
-                    Self::$rname { tx: p.0.into_mode(&mut cr), rx: p.1.into_mode::<Input<INMODE>>(&mut cr) }
+                    Self::$rname { tx: p.0.into_mode(&mut cr), rx: p.1.into_mode(&mut cr) }
                 }
             }
         )+
@@ -154,9 +154,7 @@ use crate::pac::usart1 as uart_base;
 pub trait Instance:
     crate::Sealed + Deref<Target = uart_base::RegisterBlock> + Enable + Reset + BusClock
 {
-    type Pins<OUTMODE, INMODE>
-    where
-        INMODE: RxMode;
+    type Pins<OUTMODE, INMODE>;
 
     #[doc(hidden)]
     fn ptr() -> *const uart_base::RegisterBlock;
@@ -166,7 +164,7 @@ macro_rules! inst {
     ($($USARTX:ident, $usart:ident;)+) => {
         $(
             impl Instance for $USARTX {
-                type Pins<OUTMODE, INMODE> = $usart::Pins<OUTMODE, INMODE> where INMODE: RxMode;
+                type Pins<OUTMODE, INMODE> = $usart::Pins<OUTMODE, INMODE>;
 
                 fn ptr() -> *const uart_base::RegisterBlock {
                     <$USARTX>::ptr() as *const _
@@ -294,11 +292,7 @@ impl From<Bps> for Config {
 }
 
 /// Serial abstraction
-pub struct Serial<USART, OUTMODE = PushPull, INMODE = Floating>
-where
-    USART: Instance,
-    INMODE: RxMode,
-{
+pub struct Serial<USART: Instance, OUTMODE = PushPull, INMODE = Floating> {
     pub tx: Tx<USART>,
     pub rx: Rx<USART>,
     pub token: ReleaseToken<USART, USART::Pins<OUTMODE, INMODE>>,
@@ -320,7 +314,7 @@ pub struct ReleaseToken<USART, PINS> {
     pins: PINS,
 }
 
-impl<USART: Instance, OUTMODE, INMODE: RxMode> Serial<USART, OUTMODE, INMODE> {
+impl<USART: Instance, OUTMODE, INMODE> Serial<USART, OUTMODE, INMODE> {
     /// Configures the serial interface and creates the interface
     /// struct.
     ///
@@ -706,7 +700,7 @@ pub enum Event {
     Idle,
 }
 
-impl<USART: Instance, OUTMODE, INMODE: RxMode> Serial<USART, OUTMODE, INMODE> {
+impl<USART: Instance, OUTMODE, INMODE> Serial<USART, OUTMODE, INMODE> {
     /// Starts listening to the USART by enabling the _Received data
     /// ready to be read (RXNE)_ interrupt and _Transmit data
     /// register empty (TXE)_ interrupt
@@ -750,7 +744,7 @@ impl<USART: Instance, OUTMODE, INMODE: RxMode> Serial<USART, OUTMODE, INMODE> {
     }
 }
 
-impl<USART: Instance, OUTMODE, INMODE: RxMode> embedded_hal::serial::Write<u8>
+impl<USART: Instance, OUTMODE, INMODE> embedded_hal::serial::Write<u8>
     for Serial<USART, OUTMODE, INMODE>
 {
     type Error = Infallible;
@@ -764,7 +758,7 @@ impl<USART: Instance, OUTMODE, INMODE: RxMode> embedded_hal::serial::Write<u8>
     }
 }
 
-impl<USART: Instance, OUTMODE, INMODE: RxMode> embedded_hal::serial::Write<u16>
+impl<USART: Instance, OUTMODE, INMODE> embedded_hal::serial::Write<u16>
     for Serial<USART, OUTMODE, INMODE>
 {
     type Error = Infallible;
@@ -778,7 +772,7 @@ impl<USART: Instance, OUTMODE, INMODE: RxMode> embedded_hal::serial::Write<u16>
     }
 }
 
-impl<USART: Instance, OUTMODE, INMODE: RxMode> embedded_hal::blocking::serial::Write<u8>
+impl<USART: Instance, OUTMODE, INMODE> embedded_hal::blocking::serial::Write<u8>
     for Serial<USART, OUTMODE, INMODE>
 {
     type Error = Infallible;
@@ -792,7 +786,7 @@ impl<USART: Instance, OUTMODE, INMODE: RxMode> embedded_hal::blocking::serial::W
     }
 }
 
-impl<USART: Instance, OUTMODE, INMODE: RxMode> embedded_hal::blocking::serial::Write<u16>
+impl<USART: Instance, OUTMODE, INMODE> embedded_hal::blocking::serial::Write<u16>
     for Serial<USART, OUTMODE, INMODE>
 {
     type Error = Infallible;
@@ -806,13 +800,13 @@ impl<USART: Instance, OUTMODE, INMODE: RxMode> embedded_hal::blocking::serial::W
     }
 }
 
-impl<USART: Instance, OUTMODE, INMODE: RxMode> core::fmt::Write for Serial<USART, OUTMODE, INMODE> {
+impl<USART: Instance, OUTMODE, INMODE> core::fmt::Write for Serial<USART, OUTMODE, INMODE> {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         self.tx.write_str(s)
     }
 }
 
-impl<USART: Instance, OUTMODE, INMODE: RxMode> embedded_hal::serial::Read<u8>
+impl<USART: Instance, OUTMODE, INMODE> embedded_hal::serial::Read<u8>
     for Serial<USART, OUTMODE, INMODE>
 {
     type Error = Error;
@@ -822,7 +816,7 @@ impl<USART: Instance, OUTMODE, INMODE: RxMode> embedded_hal::serial::Read<u8>
     }
 }
 
-impl<USART: Instance, OUTMODE, INMODE: RxMode> embedded_hal::serial::Read<u16>
+impl<USART: Instance, OUTMODE, INMODE> embedded_hal::serial::Read<u16>
     for Serial<USART, OUTMODE, INMODE>
 {
     type Error = Error;
