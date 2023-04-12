@@ -6,8 +6,6 @@
 */
 use core::u16;
 
-use core::marker::PhantomData;
-
 use crate::hal::{self, Direction};
 #[cfg(any(feature = "stm32f100", feature = "stm32f103", feature = "connectivity",))]
 use crate::pac::TIM1;
@@ -15,10 +13,8 @@ use crate::pac::TIM1;
 use crate::pac::TIM4;
 use crate::pac::{TIM2, TIM3};
 
-use crate::afio::MAPR;
-
-use crate::timer::pwm_input::Pins;
-use crate::timer::{pins::sealed::Remap, Timer};
+use crate::rcc::Clocks;
+use crate::timer::{InputPins, Timer};
 
 /// SMS (Slave Mode Selection) register
 #[derive(Copy, Clone, Debug)]
@@ -65,81 +61,107 @@ impl Default for QeiOptions {
     }
 }
 
-pub struct Qei<TIM, REMAP, PINS> {
+pub struct Qei<TIM: InputPins> {
     tim: TIM,
-    pins: PINS,
-    _remap: PhantomData<REMAP>,
+    pins: TIM::Channels12,
+}
+
+pub trait QeiExt: Sized + InputPins {
+    fn qei(
+        self,
+        pins: impl Into<<Self as InputPins>::Channels12>,
+        options: QeiOptions,
+        clocks: &Clocks,
+    ) -> Qei<Self>;
+}
+
+#[cfg(any(feature = "stm32f100", feature = "stm32f103", feature = "connectivity",))]
+impl QeiExt for TIM1 {
+    fn qei(
+        self,
+        pins: impl Into<<Self as InputPins>::Channels12>,
+        options: QeiOptions,
+        clocks: &Clocks,
+    ) -> Qei<Self> {
+        Timer::new(self, &clocks).qei(pins, options)
+    }
 }
 
 #[cfg(any(feature = "stm32f100", feature = "stm32f103", feature = "connectivity",))]
 impl Timer<TIM1> {
-    pub fn qei<REMAP, PINS>(
+    pub fn qei(
         self,
-        pins: PINS,
-        mapr: &mut MAPR,
+        pins: impl Into<<TIM1 as InputPins>::Channels12>,
         options: QeiOptions,
-    ) -> Qei<TIM1, REMAP, PINS>
-    where
-        REMAP: Remap<Periph = TIM1>,
-        PINS: Pins<REMAP>,
-    {
-        mapr.modify_mapr(|_, w| unsafe { w.tim1_remap().bits(REMAP::REMAP) });
-
+    ) -> Qei<TIM1> {
         let Self { tim, clk: _ } = self;
         Qei::_tim1(tim, pins, options)
     }
 }
 
-impl Timer<TIM2> {
-    pub fn qei<REMAP, PINS>(
+impl QeiExt for TIM2 {
+    fn qei(
         self,
-        pins: PINS,
-        mapr: &mut MAPR,
+        pins: impl Into<<Self as InputPins>::Channels12>,
         options: QeiOptions,
-    ) -> Qei<TIM2, REMAP, PINS>
-    where
-        REMAP: Remap<Periph = TIM2>,
-        PINS: Pins<REMAP>,
-    {
-        mapr.modify_mapr(|_, w| unsafe { w.tim2_remap().bits(REMAP::REMAP) });
+        clocks: &Clocks,
+    ) -> Qei<Self> {
+        Timer::new(self, &clocks).qei(pins, options)
+    }
+}
 
+impl Timer<TIM2> {
+    pub fn qei(
+        self,
+        pins: impl Into<<TIM2 as InputPins>::Channels12>,
+        options: QeiOptions,
+    ) -> Qei<TIM2> {
         let Self { tim, clk: _ } = self;
         Qei::_tim2(tim, pins, options)
     }
 }
 
-impl Timer<TIM3> {
-    pub fn qei<REMAP, PINS>(
+impl QeiExt for TIM3 {
+    fn qei(
         self,
-        pins: PINS,
-        mapr: &mut MAPR,
+        pins: impl Into<<Self as InputPins>::Channels12>,
         options: QeiOptions,
-    ) -> Qei<TIM3, REMAP, PINS>
-    where
-        REMAP: Remap<Periph = TIM3>,
-        PINS: Pins<REMAP>,
-    {
-        mapr.modify_mapr(|_, w| unsafe { w.tim3_remap().bits(REMAP::REMAP) });
+        clocks: &Clocks,
+    ) -> Qei<Self> {
+        Timer::new(self, &clocks).qei(pins, options)
+    }
+}
 
+impl Timer<TIM3> {
+    pub fn qei(
+        self,
+        pins: impl Into<<TIM3 as InputPins>::Channels12>,
+        options: QeiOptions,
+    ) -> Qei<TIM3> {
         let Self { tim, clk: _ } = self;
         Qei::_tim3(tim, pins, options)
     }
 }
 
 #[cfg(feature = "medium")]
-impl Timer<TIM4> {
-    pub fn qei<REMAP, PINS>(
+impl QeiExt for TIM4 {
+    fn qei(
         self,
-        pins: PINS,
-        mapr: &mut MAPR,
+        pins: impl Into<<Self as InputPins>::Channels12>,
         options: QeiOptions,
-    ) -> Qei<TIM4, REMAP, PINS>
-    where
-        REMAP: Remap<Periph = TIM4>,
-        PINS: Pins<REMAP>,
-    {
-        mapr.modify_mapr(|_, w| w.tim4_remap().bit(REMAP::REMAP == 1));
+        clocks: &Clocks,
+    ) -> Qei<Self> {
+        Timer::new(self, &clocks).qei(pins, options)
+    }
+}
 
+#[cfg(feature = "medium")]
+impl Timer<TIM4> {
+    pub fn qei(
+        self,
+        pins: impl Into<<TIM4 as InputPins>::Channels12>,
+        options: QeiOptions,
+    ) -> Qei<TIM4> {
         let Self { tim, clk: _ } = self;
         Qei::_tim4(tim, pins, options)
     }
@@ -148,8 +170,10 @@ impl Timer<TIM4> {
 macro_rules! hal {
     ($($TIMX:ident: ($timX:ident, $timXen:ident, $timXrst:ident),)+) => {
         $(
-            impl<REMAP, PINS> Qei<$TIMX, REMAP, PINS> {
-                fn $timX(tim: $TIMX, pins: PINS, options: QeiOptions) -> Self {
+            impl Qei<$TIMX> {
+                fn $timX(tim: $TIMX, pins: impl Into<<$TIMX as InputPins>::Channels12>, options: QeiOptions) -> Self {
+                    let pins = pins.into();
+
                     // Configure TxC1 and TxC2 as captures
                     tim.ccmr1_input().write(|w| w.cc1s().ti1().cc2s().ti2());
 
@@ -171,15 +195,15 @@ macro_rules! hal {
                     tim.arr.write(|w| w.arr().bits(options.auto_reload_value));
                     tim.cr1.write(|w| w.cen().set_bit());
 
-                    Qei { tim, pins, _remap: PhantomData }
+                    Qei { tim, pins }
                 }
 
-                pub fn release(self) -> ($TIMX, PINS) {
+                pub fn release(self) -> ($TIMX, <$TIMX as InputPins>::Channels12) {
                     (self.tim, self.pins)
                 }
             }
 
-            impl<REMAP, PINS> hal::Qei for Qei<$TIMX, REMAP, PINS> {
+            impl hal::Qei for Qei<$TIMX> {
                 type Count = u16;
 
                 fn count(&self) -> u16 {

@@ -1,6 +1,6 @@
-use crate::pac;
-use crate::gpio::{self, Cr, Alternate};
 use crate::afio::MAPR;
+use crate::gpio::{self, Alternate, Cr};
+use crate::pac;
 
 pub trait CPin<REMAP, const C: u8> {}
 pub struct Ch<const C: u8>;
@@ -67,9 +67,27 @@ pub mod tim1 {
     use super::*;
 
     remap4! {
-        Pins: [
+        pac::TIM1: [
             No, PA8, PA9, PA10, PA11 => MAPR { |_, w| unsafe { w.tim1_remap().bits(0)} };
             Full, PE9, PE11, PE13, PE14 => MAPR { |_, w| unsafe { w.tim1_remap().bits(0b11)} };
+        ]
+    }
+    remap12! {
+        pac::TIM1: [
+            No, PA8, PA9 => MAPR { |_, w| unsafe { w.tim1_remap().bits(0)} };
+            Full, PE9, PE11 => MAPR { |_, w| unsafe { w.tim1_remap().bits(0b11)} };
+        ]
+    }
+    remap_input! {
+        pac::TIM1, InputChannels12: [
+            No, PA8, PA9 => MAPR { |_, w| unsafe { w.tim1_remap().bits(0)} };
+            Full, PE9, PE11 => MAPR { |_, w| unsafe { w.tim1_remap().bits(0b11)} };
+        ]
+    }
+    remap34! {
+        pac::TIM1: [
+            No, PA10, PA11 => MAPR { |_, w| unsafe { w.tim1_remap().bits(0)} };
+            Full, PE13, PE14 => MAPR { |_, w| unsafe { w.tim1_remap().bits(0b11)} };
         ]
     }
 }
@@ -78,106 +96,213 @@ pub mod tim2 {
     use super::*;
 
     remap4! {
-        Pins: [
+        pac::TIM2: [
             No, PA0, PA1, PA2, PA3 => MAPR { |_, w| unsafe { w.tim2_remap().bits(0)} };
             Partial1, PA15, PB3, PA2, PA3 => MAPR { |_, w| unsafe { w.tim2_remap().bits(0b01)} };
             Partial2, PA0, PA1, PB10, PB11 => MAPR { |_, w| unsafe { w.tim2_remap().bits(0b10)} };
             Full, PA15, PB3, PB10, PB11 => MAPR { |_, w| unsafe { w.tim2_remap().bits(0b11)} };
         ]
     }
+    remap12! {
+        pac::TIM2: [
+            No, PA0, PA1 => MAPR { |_, w| unsafe { w.tim2_remap().bits(0)} };
+            Partial1, PA15, PB3 => MAPR { |_, w| unsafe { w.tim2_remap().bits(0b01)} };
+        ]
+    }
+    remap_input! {
+        pac::TIM2, InputChannels12: [
+            No, PA0, PA1 => MAPR { |_, w| unsafe { w.tim2_remap().bits(0)} };
+            Partial1, PA15, PB3 => MAPR { |_, w| unsafe { w.tim2_remap().bits(0b01)} };
+        ]
+    }
+    remap34! {
+        pac::TIM2: [
+            No, PA2, PA3 => MAPR { |_, w| unsafe { w.tim2_remap().bits(0)} };
+            Partial2, PB10, PB11 => MAPR { |_, w| unsafe { w.tim2_remap().bits(0b10)} };
+        ]
+    }
+}
+
+pub mod tim3 {
+    use super::*;
+
+    remap4! {
+        pac::TIM3: [
+            No, PA6, PA7, PB0, PB1 => MAPR { |_, w| unsafe { w.tim3_remap().bits(0)} };
+            Partial, PB4, PB5, PB0, PB1 => MAPR { |_, w| unsafe { w.tim3_remap().bits(0b10)} };
+            Full, PC6, PC7, PC8, PC9 => MAPR { |_, w| unsafe { w.tim3_remap().bits(0b11)} };
+        ]
+    }
+    remap12! {
+        pac::TIM3: [
+            No, PA6, PA7 => MAPR { |_, w| unsafe { w.tim3_remap().bits(0)} };
+            Partial, PB4, PB5 => MAPR { |_, w| unsafe { w.tim3_remap().bits(0b10)} };
+            Full, PC6, PC7 => MAPR { |_, w| unsafe { w.tim3_remap().bits(0b11)} };
+        ]
+    }
+    remap_input! {
+        pac::TIM3, InputChannels12: [
+            No, PA6, PA7 => MAPR { |_, w| unsafe { w.tim3_remap().bits(0)} };
+            Partial, PB4, PB5 => MAPR { |_, w| unsafe { w.tim3_remap().bits(0b10)} };
+            Full, PC6, PC7 => MAPR { |_, w| unsafe { w.tim3_remap().bits(0b11)} };
+        ]
+    }
+    remap34! {
+        pac::TIM3: [
+            No, PB0, PB1 => MAPR { |_, w| unsafe { w.tim3_remap().bits(0)} };
+            Full, PC8, PC9 => MAPR { |_, w| unsafe { w.tim3_remap().bits(0b11)} };
+        ]
+    }
+}
+
+#[cfg(feature = "medium")]
+pub mod tim4 {
+    use super::*;
+
+    remap4! {
+        pac::TIM4: [
+            No, PB6, PB7, PB8, PB9 => MAPR { |_, w| w.tim4_remap().bit(false) };
+            Full, PD12, PD13, PD14, PD15 => MAPR { |_, w| w.tim4_remap().bit(true) };
+        ]
+    }
+    remap12! {
+        pac::TIM4: [
+            No, PB6, PB7 => MAPR { |_, w| w.tim4_remap().bit(false) };
+            Full, PD12, PD13 => MAPR { |_, w| w.tim4_remap().bit(true) };
+        ]
+    }
+    remap_input! {
+        pac::TIM4, InputChannels12: [
+            No, PB6, PB7 => MAPR { |_, w| w.tim4_remap().bit(false) };
+            Full, PD12, PD13 => MAPR { |_, w| w.tim4_remap().bit(true) };
+        ]
+    }
+    remap34! {
+        pac::TIM4: [
+            No, PB8, PB9 => MAPR { |_, w| w.tim4_remap().bit(false) };
+            Full, PD14, PD15 => MAPR { |_, w| w.tim4_remap().bit(true) };
+        ]
+    }
 }
 
 macro_rules! remap4 {
-    ($name:ident: [
+    ($TIM:ty: [
         $($rname:ident, $P1:ident, $P2:ident, $P3:ident, $P4:ident $( => $MAPR:ident { $remapex:expr })?;)+
     ]) => {
         remap_combo! {
-            X4 => Channels1234: [
+            $TIM, Channels1234; C1, C2, C3, C4: [
                 $($rname, $P1, $P2, $P3, $P4 $( => $MAPR { $remapex })?;)+
             ]
         }
         remap_combo! {
-            X3 => Channels123: [
+            $TIM, Channels123; C1, C2, C3: [
                 $($rname, $P1, $P2, $P3 $( => $MAPR { $remapex })?;)+
             ]
         }
         remap_combo! {
-            X3 => Channels124: [
+            $TIM, Channels124; C1, C2, C4: [
                 $($rname, $P1, $P2, $P4 $( => $MAPR { $remapex })?;)+
             ]
         }
         remap_combo! {
-            X3 => Channels134: [
+            $TIM, Channels134; C1, C3, C4: [
                 $($rname, $P1, $P3, $P4 $( => $MAPR { $remapex })?;)+
             ]
         }
         remap_combo! {
-            X3 => Channels234: [
+            $TIM, Channels234; C2, C3, C4: [
                 $($rname, $P2, $P3, $P4 $( => $MAPR { $remapex })?;)+
             ]
         }
         remap_combo! {
-            X2 => Channels12: [
-                $($rname, $P1, $P2 $( => $MAPR { $remapex })?;)+
-            ]
-        }
-        remap_combo! {
-            X2 => Channels13: [
+            $TIM, Channels13; C1, C3: [
                 $($rname, $P1, $P3 $( => $MAPR { $remapex })?;)+
             ]
         }
         remap_combo! {
-            X2 => Channels14: [
+            $TIM, Channels14; C1, C4: [
                 $($rname, $P1, $P4 $( => $MAPR { $remapex })?;)+
             ]
         }
         remap_combo! {
-            X2 => Channels23: [
+            $TIM, Channels23; C2, C3: [
                 $($rname, $P2, $P3 $( => $MAPR { $remapex })?;)+
             ]
         }
         remap_combo! {
-            X2 => Channels24: [
+            $TIM, Channels24; C2, C4: [
                 $($rname, $P2, $P4 $( => $MAPR { $remapex })?;)+
-            ]
-        }
-        remap_combo! {
-            X2 => Channels34: [
-                $($rname, $P3, $P4 $( => $MAPR { $remapex })?;)+
-            ]
-        }
-        remap_combo! {
-            X1 => Channel1: [
-                $($rname, $P1 $( => $MAPR { $remapex })?;)+
-            ]
-        }
-        remap_combo! {
-            X1 => Channel2: [
-                $($rname, $P2 $( => $MAPR { $remapex })?;)+
-            ]
-        }
-        remap_combo! {
-            X1 => Channel3: [
-                $($rname, $P3 $( => $MAPR { $remapex })?;)+
-            ]
-        }
-        remap_combo! {
-            X1 => Channel4: [
-                $($rname, $P4 $( => $MAPR { $remapex })?;)+
             ]
         }
     }
 }
 use remap4;
 
+macro_rules! remap12 {
+    ($TIM:ty: [
+        $($rname:ident, $P1:ident, $P2:ident $( => $MAPR:ident { $remapex:expr })?;)+
+    ]) => {
+        remap_combo! {
+            $TIM, Channels12; C1, C2: [
+                $($rname, $P1, $P2 $( => $MAPR { $remapex })?;)+
+            ]
+        }
+        remap_combo! {
+            $TIM, Channel1; C1: [
+                $($rname, $P1 $( => $MAPR { $remapex })?;)+
+            ]
+        }
+        remap_combo! {
+            $TIM, Channel2; C2: [
+                $($rname, $P2 $( => $MAPR { $remapex })?;)+
+            ]
+        }
+    }
+}
+use remap12;
+
+macro_rules! remap34 {
+    ($TIM:ty: [
+        $($rname:ident, $P1:ident, $P2:ident $( => $MAPR:ident { $remapex:expr })?;)+
+    ]) => {
+        remap_combo! {
+            $TIM, Channels34; C3, C4: [
+                $($rname, $P1, $P2 $( => $MAPR { $remapex })?;)+
+            ]
+        }
+        remap_combo! {
+            $TIM, Channel3; C3: [
+                $($rname, $P1 $( => $MAPR { $remapex })?;)+
+            ]
+        }
+        remap_combo! {
+            $TIM, Channel4; C4: [
+                $($rname, $P2 $( => $MAPR { $remapex })?;)+
+            ]
+        }
+    }
+}
+use remap34;
+
 macro_rules! remap_combo {
-    (X4 => $name:ident: [
+    ($TIM:ty, $name:ident; $C1:ident, $C2:ident, $C3:ident, $C4:ident: [
         $($rname:ident, $P0:ident, $P1:ident, $P2:ident, $P3:ident $( => $MAPR:ident { $remapex:expr })?;)+
     ]) => {
         pub enum $name {
             $(
                 $rname(gpio::$P0<Alternate>, gpio::$P1<Alternate>, gpio::$P2<Alternate>, gpio::$P3<Alternate>),
             )+
+        }
+
+        impl Pins<$TIM> for $name {
+            const $C1: bool = true;
+            const $C2: bool = true;
+            const $C3: bool = true;
+            const $C4: bool = true;
+            type Channels = (PwmChannel<$TIM, $C1>, PwmChannel<$TIM, $C2>, PwmChannel<$TIM, $C3>, PwmChannel<$TIM, $C4>);
+            fn split() -> Self::Channels {
+                (PwmChannel::new(), PwmChannel::new(), PwmChannel::new(), PwmChannel::new())
+            }
         }
 
         $(
@@ -201,13 +326,23 @@ macro_rules! remap_combo {
         )+
     };
 
-    (X3 => $name:ident: [
+    ($TIM:ty, $name:ident; $C1:ident, $C2:ident, $C3:ident: [
         $($rname:ident, $P0:ident, $P1:ident, $P2:ident $( => $MAPR:ident { $remapex:expr })?;)+
     ]) => {
         pub enum $name {
             $(
                 $rname(gpio::$P0<Alternate>, gpio::$P1<Alternate>, gpio::$P2<Alternate>),
             )+
+        }
+
+        impl Pins<$TIM> for $name {
+            const $C1: bool = true;
+            const $C2: bool = true;
+            const $C3: bool = true;
+            type Channels = (PwmChannel<$TIM, $C1>, PwmChannel<$TIM, $C2>, PwmChannel<$TIM, $C3>);
+            fn split() -> Self::Channels {
+                (PwmChannel::new(), PwmChannel::new(), PwmChannel::new())
+            }
         }
 
         $(
@@ -230,13 +365,22 @@ macro_rules! remap_combo {
         )+
     };
 
-    (X2 => $name:ident: [
+    ($TIM:ty, $name:ident; $C1:ident, $C2:ident: [
         $($rname:ident, $P0:ident, $P1:ident $( => $MAPR:ident { $remapex:expr })?;)+
     ]) => {
         pub enum $name {
             $(
                 $rname(gpio::$P0<Alternate>, gpio::$P1<Alternate>),
             )+
+        }
+
+        impl Pins<$TIM> for $name {
+            const $C1: bool = true;
+            const $C2: bool = true;
+            type Channels = (PwmChannel<$TIM, $C1>, PwmChannel<$TIM, $C2>);
+            fn split() -> Self::Channels {
+                (PwmChannel::new(), PwmChannel::new())
+            }
         }
 
         $(
@@ -257,14 +401,22 @@ macro_rules! remap_combo {
             }
         )+
     };
-    
-    (X1 => $name:ident: [
+
+    ($TIM:ty, $name:ident; $C:ident: [
         $($rname:ident, $P0:ident $( => $MAPR:ident { $remapex:expr })?;)+
     ]) => {
         pub enum $name {
             $(
                 $rname(gpio::$P0<Alternate>),
             )+
+        }
+
+        impl Pins<$TIM> for $name {
+            const $C: bool = true;
+            type Channels = PwmChannel<$TIM, $C>;
+            fn split() -> Self::Channels {
+                PwmChannel::new()
+            }
         }
 
         $(
@@ -286,3 +438,59 @@ macro_rules! remap_combo {
     };
 }
 use remap_combo;
+
+use super::{Channel, PwmChannel};
+
+pub trait Pins<TIM> {
+    const C1: bool = false;
+    const C2: bool = false;
+    const C3: bool = false;
+    const C4: bool = false;
+    type Channels;
+
+    fn check_used(c: Channel) -> Channel {
+        if (c == Channel::C1 && Self::C1)
+            || (c == Channel::C2 && Self::C2)
+            || (c == Channel::C3 && Self::C3)
+            || (c == Channel::C4 && Self::C4)
+        {
+            c
+        } else {
+            panic!("Unused channel")
+        }
+    }
+
+    fn split() -> Self::Channels;
+}
+
+macro_rules! remap_input {
+    ($TIM:ty, $name:ident: [
+        $($rname:ident, $P0:ident, $P1:ident $( => $MAPR:ident { $remapex:expr })?;)+
+    ]) => {
+        pub enum $name {
+            $(
+                $rname(gpio::$P0, gpio::$P1),
+            )+
+        }
+
+        impl InputPins for $TIM {
+            type Channels12 = $name;
+        }
+
+        $(
+            impl From<(gpio::$P0, gpio::$P1 $(, &mut $MAPR)?)> for $name {
+                fn from(p: (gpio::$P0, gpio::$P1 $(, &mut $MAPR)?)) -> Self {
+                    let p0 = p.0.into_mode(&mut Cr::new());
+                    let p1 = p.1.into_mode(&mut Cr::new());
+                    $(p.2.modify_mapr($remapex);)?
+                    Self::$rname(p0, p1)
+                }
+            }
+        )+
+    };
+}
+use remap_input;
+
+pub trait InputPins {
+    type Channels12;
+}

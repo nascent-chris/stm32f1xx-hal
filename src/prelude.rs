@@ -15,6 +15,7 @@ pub use crate::hal::digital::v2::StatefulOutputPin as _embedded_hal_digital_Stat
 pub use crate::hal::digital::v2::ToggleableOutputPin as _embedded_hal_digital_ToggleableOutputPin;
 pub use crate::hal::prelude::*;
 pub use crate::i2c::I2cExt as _;
+pub use crate::qei::QeiExt as _;
 pub use crate::rcc::RccExt as _stm32_hal_rcc_RccExt;
 pub use crate::serial::SerialExt as _;
 pub use crate::spi::SpiExt as _;
@@ -22,6 +23,7 @@ pub use crate::time::U32Ext as _stm32_hal_time_U32Ext;
 #[cfg(feature = "rtic")]
 pub use crate::timer::MonoTimerExt as _stm32f4xx_hal_timer_MonoTimerExt;
 pub use crate::timer::PwmExt as _stm32f4xx_hal_timer_PwmExt;
+pub use crate::timer::PwmInputExt as _;
 pub use crate::timer::SysTimerExt as _stm32f4xx_hal_timer_SysCounterExt;
 pub use crate::timer::TimerExt as _stm32f4xx_hal_timer_TimerExt;
 pub use fugit::ExtU32 as _fugit_ExtU32;
