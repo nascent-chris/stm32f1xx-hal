@@ -121,6 +121,43 @@ macro_rules! remap {
 }
 use remap;
 
+pub trait CanExt: Sized + Instance {
+    fn can<INMODE>(
+        self,
+        #[cfg(not(feature = "connectivity"))] usb: pac::USB,
+        pins: impl Into<Self::Pins<INMODE>>,
+    ) -> Can<Self, INMODE>;
+    fn can_loopback<INMODE>(
+        self,
+        #[cfg(not(feature = "connectivity"))] usb: pac::USB,
+    ) -> Can<Self, INMODE>;
+}
+
+impl<CAN: Instance> CanExt for CAN {
+    fn can<INMODE>(
+        self,
+        #[cfg(not(feature = "connectivity"))] usb: pac::USB,
+        pins: impl Into<Self::Pins<INMODE>>,
+    ) -> Can<Self, INMODE> {
+        Can::new(
+            self,
+            #[cfg(not(feature = "connectivity"))]
+            usb,
+            pins,
+        )
+    }
+    fn can_loopback<INMODE>(
+        self,
+        #[cfg(not(feature = "connectivity"))] usb: pac::USB,
+    ) -> Can<Self, INMODE> {
+        Can::new_loopback(
+            self,
+            #[cfg(not(feature = "connectivity"))]
+            usb,
+        )
+    }
+}
+
 pub trait Instance: crate::rcc::Enable {
     type Pins<INMODE>;
 }
@@ -144,18 +181,11 @@ impl<CAN: Instance, INMODE> Can<CAN, INMODE> {
     ///
     /// CAN shares SRAM with the USB peripheral. Take ownership of USB to
     /// prevent accidental shared usage.
-    #[cfg(not(feature = "connectivity"))]
-    pub fn new(can: CAN, _usb: pac::USB, pins: impl Into<CAN::Pins<INMODE>>) -> Can<CAN, INMODE> {
-        let rcc = unsafe { &(*RCC::ptr()) };
-        CAN::enable(rcc);
-
-        let pins = Some(pins.into());
-        Can { can, pins }
-    }
-
-    /// Creates a CAN interaface.
-    #[cfg(feature = "connectivity")]
-    pub fn new(can: CAN, pins: impl Into<CAN::Pins<INMODE>>) -> Can<CAN, INMODE> {
+    pub fn new(
+        can: CAN,
+        #[cfg(not(feature = "connectivity"))] _usb: pac::USB,
+        pins: impl Into<CAN::Pins<INMODE>>,
+    ) -> Can<CAN, INMODE> {
         let rcc = unsafe { &(*RCC::ptr()) };
         CAN::enable(rcc);
 
@@ -164,17 +194,10 @@ impl<CAN: Instance, INMODE> Can<CAN, INMODE> {
     }
 
     /// Creates a CAN interface in loopback mode
-    #[cfg(not(feature = "connectivity"))]
-    pub fn new_loopback(can: CAN, _usb: pac::USB) -> Can<CAN, INMODE> {
-        let rcc = unsafe { &(*RCC::ptr()) };
-        CAN::enable(rcc);
-
-        Can { can, pins: None }
-    }
-
-    /// Creates a CAN interface in loopback mode
-    #[cfg(feature = "connectivity")]
-    pub fn new_loopback(can: CAN) -> Can<CAN, INMODE> {
+    pub fn new_loopback(
+        can: CAN,
+        #[cfg(not(feature = "connectivity"))] _usb: pac::USB,
+    ) -> Can<CAN, INMODE> {
         let rcc = unsafe { &(*RCC::ptr()) };
         CAN::enable(rcc);
 

@@ -10,7 +10,7 @@ use panic_halt as _;
 use bxcan::filter::Mask32;
 use cortex_m_rt::entry;
 use nb::block;
-use stm32f1xx_hal::{can::Can, gpio::Floating, pac, prelude::*};
+use stm32f1xx_hal::{gpio::Floating, pac, prelude::*};
 
 #[entry]
 fn main() -> ! {
@@ -31,10 +31,11 @@ fn main() -> ! {
         let rx = gpioa.pa11;
         let tx = gpioa.pa12;
 
-        #[cfg(not(feature = "connectivity"))]
-        let can = Can::<_, Floating>::new(dp.CAN1, dp.USB, (tx, rx, &mut afio.mapr));
-        #[cfg(feature = "connectivity")]
-        let can = Can::<_, Floating>::new(dp.CAN1, (tx, rx, &mut afio.mapr));
+        let can = dp.CAN1.can::<Floating>(
+            #[cfg(not(feature = "connectivity"))]
+            dp.USB,
+            (tx, rx, &mut afio.mapr),
+        );
 
         // APB1 (PCLK1): 8MHz, Bit rate: 125kBit/s, Sample Point 87.5%
         // Value was calculated with http://www.bittiming.can-wiki.info/
@@ -50,7 +51,9 @@ fn main() -> ! {
     #[cfg(feature = "connectivity")]
     let _can2 = {
         let gpiob = dp.GPIOB.split();
-        let can = Can::<_, Floating>::new(dp.CAN2, (gpiob.pb6, gpiob.pb5, &mut afio.mapr));
+        let can = dp
+            .CAN2
+            .can::<Floating>((gpiob.pb6, gpiob.pb5, &mut afio.mapr));
 
         // APB1 (PCLK1): 8MHz, Bit rate: 125kBit/s, Sample Point 87.5%
         // Value was calculated with http://www.bittiming.can-wiki.info/
