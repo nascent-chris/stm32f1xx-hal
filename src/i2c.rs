@@ -123,9 +123,11 @@ macro_rules! remap {
 
             impl From<(gpio::$SCL, gpio::$SDA $(, &mut $MAPR)?)> for $name {
                 fn from(p: (gpio::$SCL, gpio::$SDA $(, &mut $MAPR)?)) -> Self {
-                    $(p.2.modify_mapr($remapex);)?
                     let mut cr = Cr::new();
-                    Self::$rname { scl: p.0.into_mode(&mut cr), sda: p.1.into_mode(&mut cr) }
+                    let scl = p.0.into_mode(&mut cr);
+                    let sda = p.1.into_mode(&mut cr);
+                    $(p.2.modify_mapr($remapex);)?
+                    Self::$rname { scl, sda }
                 }
             }
         )+
