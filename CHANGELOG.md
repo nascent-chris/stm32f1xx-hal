@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Add tools/check.py python script for local check
 - Add changelog check on PRs
 
+### Breaking changes
+
+- Relax pin type generics for `Serial`, `I2c`, `Spi`, `Can`.
+  Use enums of pin tuples and `Enum::from<(tuple)>` for pin remap before passing to peripheral.
+  Remove `RemapStruct`s.
+- Use independent `Spi` and `SpiSlave` structures instead of `OP` generic
+
 ## [v0.10.0] - 2022-12-12
 
 - `Timer`: adds `get_interrupt` to `Timer`
