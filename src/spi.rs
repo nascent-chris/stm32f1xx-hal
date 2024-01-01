@@ -353,6 +353,7 @@ where
         unsafe { ptr::read_volatile(&self.spi.dr as *const _ as *const FrameSize) }
     }
 
+    #[allow(invalid_reference_casting)]
     fn write_data_reg(&mut self, data: FrameSize) {
         // NOTE(write_volatile) see note above
         unsafe { ptr::write_volatile(&self.spi.dr as *const _ as *mut FrameSize, data) }

@@ -1,3 +1,5 @@
+use core::ops::Not;
+
 use super::*;
 
 /// embedded-hal compatible blocking I2C implementation
@@ -329,22 +331,35 @@ where
                 self.nb.i2c.sr1.read();
                 self.nb.i2c.sr2.read();
 
-                let (first_bytes, last_two_bytes) = buffer.split_at_mut(buffer_len - 3);
-                for byte in first_bytes {
-                    busy_wait_cycles!(wait_for_flag!(self.nb.i2c, rx_ne), self.timeouts.data)?;
-                    *byte = self.nb.i2c.dr.read().dr().bits();
+                let (first_bytes, last_bytes) = buffer.split_at_mut(buffer_len - 2);
+                // handle all bytes but the last
+                for byte in first_bytes.iter_mut() {
+                    // Wait for RXNE or BTF to be set
+                    let started = DWT::cycle_count();
+                    while {
+                        let sr1 = self.nb.i2c.sr1.read();
+                        (sr1.rx_ne().bit_is_set() || sr1.btf().bit_is_set()).not()
+                    } {
+                        // wait
+                        // TODO: assumes 8MHz clock
+                        if DWT::cycle_count().wrapping_sub(started) >= self.timeouts.data * 8_000 {
+                            return Err(Error::Timeout);
+                        }
+                    }
+
+                    *byte = self.nb.i2c.dr.read().dr().bits(); // Read each byte
                 }
 
-                busy_wait_cycles!(wait_for_flag!(self.nb.i2c, btf), self.timeouts.data)?;
                 self.nb.i2c.cr1.modify(|_, w| w.ack().clear_bit());
-                last_two_bytes[0] = self.nb.i2c.dr.read().dr().bits();
+                busy_wait_cycles!(wait_for_flag!(self.nb.i2c, btf), self.timeouts.data)?;
+                last_bytes[0] = self.nb.i2c.dr.read().dr().bits();
+                last_bytes[1] = self.nb.i2c.dr.read().dr().bits();
                 self.nb.send_stop();
-                last_two_bytes[1] = self.nb.i2c.dr.read().dr().bits();
-                busy_wait_cycles!(wait_for_flag!(self.nb.i2c, rx_ne), self.timeouts.data)?;
-                last_two_bytes[2] = self.nb.i2c.dr.read().dr().bits();
 
                 busy_wait_cycles!(self.wait_for_stop(), self.timeouts.data)?;
                 self.nb.i2c.cr1.modify(|_, w| w.ack().set_bit());
+
+                // */
             }
         }
 
